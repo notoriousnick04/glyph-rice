@@ -1,11 +1,11 @@
 local vars = require("variables")
 local fn   = require("hyprland.functions")
 
--- глобалки шелла — shell:<имя>: их регистрирует тот шелл, что сейчас живой (demonshot, glyph), чего у него нет — молчит
--- Launcher: тап Super открывает на отпускании. Без interrupt-ов Super+1 тоже открыл бы лаунчер,
--- поэтому каждый Super+<key> не поглощая шлёт launcherInterrupt (bindin catchall сломан с 0.55)
+-- shell globals — shell:<name>: registered by whichever shell is currently alive (demonshot, glyph), silent if it lacks it
+-- Launcher: tapping Super opens on release. Without interrupts Super+1 would also open the launcher,
+-- so every Super+<key> without consuming sends launcherInterrupt (bindin catchall broken since 0.55)
 hl.bind("SUPER + SUPER_L", hl.dsp.global("shell:launcher"), { release = true })
--- после Super+<key> release-бинд выше не срабатывает и interrupt залипает — сбрасываем на нажатии Super
+-- after Super+<key> the release bind above doesn't fire and the interrupt sticks — reset on Super press
 hl.bind("SUPER_L", hl.dsp.global("shell:launcherArm"), { ignore_mods = true, non_consuming = true })
 for _, key in ipairs({
     -- secondary modifiers: cover every Super+Mod+key combo
@@ -14,7 +14,7 @@ for _, key in ipairs({
     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
     -- Super+<key> binds below
     "Q", "W", "E", "R", "T", "A", "D", "F", "G", "K", "L", "C", "V", "M", "N", "P",
-    "Z", "X", "U", "S", "H", "I", "space", "Escape",
+    "Z", "X", "U", "S", "H", "I", "space", "Escape", "Return",
     "Comma", "Period", "Minus", "Equal", "Backslash",
     "left", "right", "up", "down",
     "Page_Up", "Page_Down", "F12",
@@ -23,20 +23,24 @@ for _, key in ipairs({
 }) do
     hl.bind("SUPER + " .. key, hl.dsp.global("shell:launcherInterrupt"), { non_consuming = true })
 end
+-- shifted combos used below (browser, move window to workspace) also need to cancel the launcher arm
+for _, key in ipairs({ "Return", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" }) do
+    hl.bind("SUPER + SHIFT + " .. key, hl.dsp.global("shell:launcherInterrupt"), { non_consuming = true })
+end
 
 -- Misc
 hl.bind(vars.kbAltar, hl.dsp.global("shell:altar"))
 hl.bind("SUPER + I", hl.dsp.global("shell:settings"))
 hl.bind("SUPER + N", hl.dsp.global("shell:ward"))
 hl.bind("SUPER + P", hl.dsp.global("shell:pact"))
-hl.bind("SUPER + A", hl.dsp.global("shell:quick")) -- быстрые настройки glyph
-hl.bind("SUPER + SHIFT + W", hl.dsp.global("shell:wall")) -- обои glyph
+hl.bind("SUPER + A", hl.dsp.global("shell:quick")) -- glyph quick settings
+hl.bind("SUPER + SHIFT + W", hl.dsp.global("shell:wall")) -- glyph wallpapers
 hl.bind(vars.kbSession, hl.dsp.global("shell:power"))
 hl.bind(vars.kbPower, hl.dsp.global("shell:power"))
 hl.bind(vars.kbLock, hl.dsp.exec_cmd(vars.lockCmd))
-hl.bind(vars.kbRestoreLock, hl.dsp.exec_cmd(vars.lockCmd), { locked = true }) -- лок упал — поднять заново (сессия ещё заблокирована → нужен locked)
+hl.bind(vars.kbRestoreLock, hl.dsp.exec_cmd(vars.lockCmd), { locked = true }) -- lock crashed — bring it back up (session still locked → needs locked)
 
--- Brightness: ставит шелл (services/Backlight) — OSD двигается сразу, brightnessctl догоняет
+-- Brightness: set by shell (services/Backlight) — OSD moves immediately, brightnessctl catches up
 hl.bind("XF86MonBrightnessUp", hl.dsp.global("shell:briUp"), { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.global("shell:briDown"), { locked = true, repeating = true })
 
@@ -149,7 +153,7 @@ hl.bind(vars.kbCommunicationWs, fn.toggle_special("communication"))
 hl.bind(vars.kbTodoWs, fn.toggle_special("todo"))
 
 -- Apps
-hl.bind(vars.kbTerminal, function() hl.exec_cmd(vars.terminal) end) -- при нажатии: user.lua может сменить vars.terminal
+hl.bind(vars.kbTerminal, function() hl.exec_cmd(vars.terminal) end) -- on press: user.lua may change vars.terminal
 hl.bind(vars.kbBrowser, hl.dsp.exec_cmd(vars.browser))
 hl.bind(vars.kbEditor, function() if vars.apps.editor then hl.exec_cmd(vars.apps.editor) end end)
 hl.bind(vars.kbFileExplorer, hl.dsp.exec_cmd(vars.fileExplorer))
@@ -192,9 +196,8 @@ hl.bind("SUPER + Period", hl.dsp.global("shell:charms"))
 hl.bind(
     "CTRL + SHIFT + ALT + V",
     hl.dsp.exec_cmd('sleep 0.5s && ydotool type -d 1 "$(cliphist list | head -1 | cliphist decode)"')
-    -- без locked: на блокировке он набрал бы последнее скопированное в поле пароля любому, кто сел за ноутбук
+    -- without locked: on lock screen it would type the last copied item into the password field for anyone at the laptop
 )
-
 -- Testing
 hl.bind(
     "SUPER + ALT + F12",

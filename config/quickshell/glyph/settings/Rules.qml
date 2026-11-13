@@ -5,16 +5,16 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 
-// house rules: ~/.config/demonshot/rules.json — единственный источник правды для настроек.
-// Правка из Settings пишет файл (writeAdapter) и сама зовёт нужный apply. applyAll зовёт только shell.qml на старте:
-// лок (lock.qml) тоже читает Theme → Rules, но ничего не применяет
+// house rules: ~/.config/demonshot/rules.json — single source of truth for settings.
+// Edits from Settings write the file (writeAdapter) and call the needed apply themselves. applyAll is called only by shell.qml on startup:
+// lock (lock.qml) also reads Theme → Rules, but applies nothing
 Singleton {
     id: root
 
     readonly property string dir: Quickshell.env("HOME") + "/.config/demonshot"
     readonly property alias store: adapter
 
-    // восемь цветов в порядке Theme: void crypt wine plum rose crimson ash bone
+    // eight colors in Theme order: void crypt wine plum rose crimson ash bone
     readonly property var palettes: [
         { name: "Demon's Shot", what: "blood & bone", c: ["#0D0B0E", "#151116", "#2B1820", "#4A2236", "#B8487A", "#C7303D", "#7A6870", "#E9DFDD"] },
         { name: "Absinthe", what: "green fairy", c: ["#0B0D0B", "#121612", "#1E2A1F", "#2F4630", "#A9B85A", "#7CC24A", "#6E7A6C", "#E3E6D8"] },
@@ -26,7 +26,7 @@ Singleton {
     ]
     readonly property var pal: palettes[adapter.palette] ?? palettes[0]
 
-    // ждём файл при создании синглтона: иначе первый, кто прочтёт store (glyph на старте), получит умолчания, а не rules.json
+    // wait for the file when creating the singleton: otherwise the first reader of store (glyph at startup) gets defaults instead of rules.json
     Component.onCompleted: file.waitForJob()
 
     FileView {
@@ -35,19 +35,19 @@ Singleton {
         blockLoading: true
         watchChanges: true
         onFileChanged: this.reload()
-        // запись — раз в конце хода: writeAdapter() на каждое поле подряд путает соседние (пресет меняет четыре разом)
+        // write once at end of turn: calling writeAdapter() on every field in a row confuses neighbors (a preset changes four at once)
         onAdapterUpdated: Qt.callLater(file.writeAdapter)
-        onLoadFailed: err => { if (err === FileViewError.FileNotFound) this.writeAdapter(); } // первый запуск: файл с умолчаниями
+        onLoadFailed: err => { if (err === FileViewError.FileNotFound) this.writeAdapter(); } // first launch: file with defaults
 
-        // умолчания — как в hypr-конфиге сейчас, чтобы первый запуск ничего не сдвинул
+        // defaults — as in hypr config now, so first launch changes nothing
         JsonAdapter {
             id: adapter
             // Display
-            property real monScale: 0      // 0 — auto, решает hypr
-            property int refresh: 0        // 0 — самые высокие герцы экрана, как mode = "highres" в hyprland.lua
-            property string main: ""       // чей monScale и refresh (Rules.mon); пусто — решит первое чтение мониторов
-            // остальные экраны, если их крутили в prefs, по Rules.key: { "TS2700-S6-1": { scale: 1, refresh: 144, pos: [-560, -1440] } };
-            // pos — от главного, он тогда в 0x0
+            property real monScale: 0      // 0 — auto, hypr decides
+            property int refresh: 0        // 0 — highest screen refresh, like mode = "highres" in hyprland.lua
+            property string main: ""       // whose monScale and refresh (Rules.mon); empty — first monitor read decides
+            // other screens, if tweaked in prefs, by Rules.key: { "TS2700-S6-1": { scale: 1, refresh: 144, pos: [-560, -1440] } };
+            // pos — relative to main, which is then at 0x0
             property var outs: ({})
             property int brightness: 62
             property bool night: false
@@ -59,14 +59,14 @@ Singleton {
             property bool blur: true
             property bool shadow: true
             property bool motion: true
-            property bool ultra: false   // режим ultra (setMode 0): 60 Гц и без украшений поверх настроек
-            property bool game: false    // игровой, как в caelestia: без анимаций, blur, теней, зазоров и скруглений, tearing (Theme.apply)
+            property bool ultra: false   // ultra mode (setMode 0): 60 Hz and no decorations on top of settings
+            property bool game: false    // game mode, like caelestia: no animations, blur, shadows, gaps and rounding, tearing (Theme.apply)
             // Colors
             property int palette: 0
             property bool paintHypr: true
             property bool paintKitty: true
-            // Input — как в hyprland/input.lua
-            property int kbSwitch: 0      // индекс в switches
+            // Input — as in hyprland/input.lua
+            property int kbSwitch: 0      // index in switches
             property int repeatDelay: 250
             property int repeatRate: 35
             property bool natural: true
@@ -75,36 +75,36 @@ Singleton {
             property int scroll: 30       // % — scroll_factor 0.3
             property int sens: 0          // -100…100 → sensitivity -1…1
             property bool flat: false
-            // Idle: минуты, 0 — никогда
+            // Idle: minutes, 0 — never
             property int lockAfter: 3
             property int dpmsAfter: 5
             property int sleepAfter: 10
             property bool hibernate: true // suspend-then-hibernate
             // System
             property bool roman: true
-            // Notices. Тишина (её же ставят обереги): обычные уведомления не показываются, критические — всегда
+            // Notices. Silence (set by wards too): normal notifications are not shown, critical ones always
             property bool dnd: false
-            property int noteTime: 6      // с, если приложение не задало своё; 0 — ждут, пока не смахнут
-            property int noteDeck: 5      // сколько видно в колоде
+            property int noteTime: 6      // s, if app didn't set its own; 0 — wait until dismissed
+            property int noteDeck: 5      // how many visible in the deck
         }
     }
 
-    // kitty: include-файл с цветами палитры (kitty.conf подключает его), SIGUSR1 — перечитать конфиг
+    // kitty: include file with palette colors (kitty.conf includes it), SIGUSR1 — reread config
     FileView { id: kitty; path: root.dir + "/kitty.conf"; printErrors: false }
 
     function hypr(lua) { Quickshell.execDetached(["hyprctl", "eval", lua]); }
 
-    // мониторы из hyprctl monitors all — включённые и не зеркала: w × h и rates — текущий режим и его частоты, x, y, lw × lh —
-    // где он и сколько в нём логических px (повёрнутый — наоборот)
+    // monitors from hyprctl monitors all — enabled and not mirrors: w × h and rates — current mode and its frequencies, x, y, lw × lh —
+    // where it is and how many logical px (rotated — swapped)
     property var mons: []
-    // главный — его ставят monScale и refresh (их читает и demonshot): встроенный, даже выключенный (крышка в доке), а нет его —
-    // первый. Помнится в store.main моделью (нет её — портом): на десктопе порядок экранов меняется с подключением, а кабель
-    // переезжает в другой порт или док — масштаб не должен уйти другому. Старое store.main — имя порта, его тоже ищем
+    // main — monScale and refresh apply to it (demonshot reads them too): built-in, even disabled (lid in dock), else first.
+    // remembered in store.main by model (else by port): on desktop screen order changes on connect, and a cable
+    // moves to another port or dock — scale must not go to another screen. Old store.main — port name, also searched
     property string first: ""
     readonly property var mon: mons.find(m => m.name === (store.main || first)) ?? mons.find(m => m.model && m.model === (store.main || first))
         ?? { name: "", w: 0, h: 0, x: 0, y: 0, lw: 0, lh: 0, transform: 0, scale: 1, hz: 0, rates: [] }
-    property bool monWanted: false // monitor() позвали раньше, чем пришёл ответ hyprctl
-    property bool driving: false   // мониторы ставит этот процесс (monitor() звал shell.qml); лок только читает
+    property bool monWanted: false // monitor() called before hyprctl answer arrived
+    property bool driving: false   // monitors are set by this process (monitor() called by shell.qml); lock only reads
     Process {
         id: monProc
         running: true
@@ -126,23 +126,23 @@ Singleton {
             }
         }
     }
-    // auto — масштаб выбирает hypr; какой вышел, узнаём, перечитав мониторы
+    // auto — scale chosen by hypr; which came out, learn by rereading monitors
     Timer { id: monReread; interval: 500; onTriggered: monProc.running = true }
-    // чем экран записан в outs: моделью — это сам монитор, а не порт (в тот же HDMI воткнули проектор — он не возьмёт место и
-    // герцы домашнего; домашний в другом порту — со своими); два одинаковых или без модели — именем порта. Как Theme.sid
+    // how a screen is recorded in outs: by model — the monitor itself, not the port (plug a projector into same HDMI — it won't take
+    // this home screen's place and refresh; home screen in another port — its own); two identical or no model — by port name. Like Theme.sid
     function key(m) { return m.model && mons.filter(x => x.model === m.model).length === 1 ? m.model : m.name; }
-    // своё у экрана; по имени — запись двойника, оставшегося одним (ключ стал моделью)
+    // own settings for a screen; by name — record of a twin left alone (key became model)
     function out(m) { return store.outs[key(m)] ?? store.outs[m.name]; }
-    // что выбрано у экрана: scale (0 — auto) и refresh
+    // what's chosen for a screen: scale (0 — auto) and refresh
     function want(m) {
         if (m.name === mon.name) return { scale: store.monScale, refresh: refreshHz };
         const o = out(m);
         return { scale: o?.scale ?? m.scale, refresh: o?.refresh ?? m.hz };
     }
-    // правило hypr для экрана. Оно заменяет правило из конфига целиком — режим (текущее разрешение) и поворот несём как есть.
-    // Внешние встают по pos от главного, главный тогда в 0x0: на auto hypr поставил бы его правее явных. Выход — как key():
-    // desc: монитора, а не порт — правило живёт в hypr до reload, и проектор в том же порту взял бы место и режим этого
-    // ponytail: vrr, 10 бит и hdr из user.lua правило шелла снимает; понадобятся — нести из hyprctl, как transform
+    // hypr rule for a screen. It fully replaces the rule from config — mode (current resolution) and rotation carried as is.
+    // Externals stand by pos from main, main then at 0x0: on auto hypr would place it right of explicit ones. Output — like key():
+    // monitor desc, not port — rule lives in hypr until reload, and a projector in same port would take this place and mode
+    // ponytail: vrr, 10 bit and hdr from user.lua shell rule removes; if needed — carry from hyprctl, like transform
     function rule(m) {
         const own = m.name === mon.name, w = want(m), pos = out(m)?.pos;
         const at = own ? (mons.some(x => x.name !== m.name && out(x)?.pos) ? "0x0" : "auto") : pos ? `${pos[0]}x${pos[1]}` : "auto";
@@ -150,8 +150,8 @@ Singleton {
         return `hl.monitor({ output = ${JSON.stringify(output)}, mode = "${m.w}x${m.h}@${own ? hz : w.refresh}", position = "${at}", `
              + `scale = ${w.scale || '"auto"'}, transform = ${m.transform} })`;
     }
-    // главный и внешние из outs — одним eval, главный первым: остальные встают от него. fresh — сперва перечитать (подключили
-    // экран): пачка screensChanged схлопывается в одно чтение через 500 мс, и ответ уже с новым экраном. Зовёт только shell.qml
+    // main and externals from outs — one eval, main first: others stand from it. fresh — reread first (screen connected):
+    // a batch of screensChanged collapses into one read in 500 ms, and answer already has new screen. Called only by shell.qml
     function monitor(fresh) {
         driving = true;
         if (fresh || !mons.length) {
@@ -165,8 +165,8 @@ Singleton {
         if (ms.length) hypr(ms.map(rule).join("\n"));
         monReread.restart();
     }
-    // prefs → display: scale (0 — auto) или refresh экрана name. Главному — monScale и refresh, внешнему — outs (place). Масштаб
-    // меняет размер — край к соседу поправит settle после чтения
+    // prefs → display: scale (0 — auto) or refresh of screen name. Main gets monScale and refresh, external gets outs (place). Scale
+    // changes size — edge to neighbor fixed by settle after read
     function set(name, k, v) {
         const m = mons.find(x => x.name === name);
         if (!m) return;
@@ -174,30 +174,30 @@ Singleton {
         store[k === "scale" ? "monScale" : "refresh"] = v;
         monitor();
     }
-    // экран name — в x, y (логические px hypr), extra — его поля в outs. Все внешние прибиваются явными pos от главного там, где
-    // стоят: правило без позиции hypr поставил бы на auto, и соседи съехали бы
+    // screen name — at x, y (logical px hypr), extra — its fields in outs. All externals pinned with explicit pos from main where
+    // they stand: rule without position hypr would set on auto, neighbors would shift
     function place(name, x, y, extra) {
         const b = name === mon.name ? { x, y } : mon, o = Object.assign({}, store.outs);
         for (const m of mons) {
             if (m.name === mon.name) continue;
             const p = m.name === name ? { x, y } : m;
-            // запись по порту не стираем: вернётся двойник — экран снова ищется по порту
+            // port record not erased: twin returns — screen searched by port again
             o[key(m)] = Object.assign({}, out(m), m.name === name ? extra : null, { pos: [p.x - b.x, p.y - b.y] });
         }
         store.outs = o;
         monitor();
     }
-    // prefs → display «reset»: забыть места, масштаб и герцы внешних — снова как в конфиге hypr (user.lua). Правила шелла живут
-    // в hypr до перечитывания конфига — его и просим; остальное вернёт configreloaded (shell.qml)
+    // prefs → display "reset": forget places, scale and refresh of externals — again as in hypr config (user.lua). Shell rules live
+    // in hypr until config reread — ask for it; rest returns via configreloaded (shell.qml)
     function forget() {
         store.outs = {};
         Quickshell.execDetached(["hyprctl", "reload"]);
     }
 
     function hits(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
-    // куда встанет экран r ({ x, y, w, h }, логические px hypr), если бросить его так: вплотную к стороне соседа, без нахлёста,
-    // общий край — не меньше четверти меньшего из двух; вдоль края — где бросили, но липнет к краям и центру соседа ближе near.
-    // Из всех таких мест — ближайшее; нет ни одного — null
+    // where screen r ({ x, y, w, h }, logical px hypr) would land if dropped so: flush against neighbor side, no overlap,
+    // common edge — at least quarter of smaller of two; along edge — where dropped, but sticks to neighbor edges and center within near.
+    // Of all such places — nearest; none — null
     function dock(r, others, near) {
         const stick = (v, lo, hi, to) => {
             v = Math.max(lo, Math.min(hi, v));
@@ -218,9 +218,9 @@ Singleton {
         }
         return best;
     }
-    // внешний с явным pos налез на соседа или повис в воздухе (сменился масштаб, вернулся экран, соседа утащили) — к ближайшему
-    // свободному краю, по одному за чтение. Уже просили туда же, а hypr не поставил — не настаиваем, иначе круг каждые полсекунды.
-    // Допуск 2 px — округление логических размеров
+    // external with explicit pos overlapped neighbor or hanging in air (scale changed, screen returned, neighbor dragged) — to nearest
+    // free edge, one per read. Already asked there, hypr didn't place — don't insist, else loop every half second.
+    // 2 px tolerance — rounding of logical sizes
     function settle() {
         if (!driving || mons.length < 2) return;
         const box = m => ({ x: m.x, y: m.y, w: m.lw, h: m.lh }), near = (a, b) => Math.abs(a - b) <= 2;
@@ -237,14 +237,14 @@ Singleton {
     }
     readonly property var rates: mon.rates.length ? mon.rates : [60, 120]
     readonly property int refreshHz: store.refresh ? rates.reduce((a, b) => Math.abs(b - store.refresh) < Math.abs(a - store.refresh) ? b : a) : rates[rates.length - 1]
-    readonly property real scale: store.monScale || mon.scale || 1 // что стоит на деле, и при auto
+    readonly property real scale: store.monScale || mon.scale || 1 // what's in effect, and on auto
     readonly property var scales: ["auto", "1", "1.25", "1.5", "2"]
     function windows() {
         const s = store;
         hypr(`hl.config({ general = { gaps_in = ${s.gapsIn}, gaps_out = ${s.gapsOut}, border_size = ${s.border} }, `
            + `decoration = { rounding = ${s.rounding}, blur = { enabled = ${blurOn} }, shadow = { enabled = ${shadowOn} } } })`);
     }
-    // ponytail: только вкл/выкл; slam/snap — переопределять кривые из animations.lua
+    // ponytail: only on/off; slam/snap — override curves from animations.lua
     function motion() { hypr(`hl.config({ animations = { enabled = ${moving} } })`); }
     readonly property var switches: [["alt+shift", "grp:alt_shift_toggle"], ["caps", "grp:caps_toggle"], ["ctrl+shift", "grp:ctrl_shift_toggle"]]
     function input() {
@@ -253,8 +253,8 @@ Singleton {
            + `sensitivity = ${s.sens / 100}, accel_profile = "${s.flat ? "flat" : "adaptive"}", touchpad = { natural_scroll = ${s.natural}, `
            + `tap_to_click = ${s.tap}, disable_while_typing = ${s.typingOff}, scroll_factor = ${s.scroll / 100} } } })`);
     }
-    // гибернация есть не везде (нужен swap под resume, zram не годится) — спрашиваем logind. Нет — обычный сон, пункты
-    // гибернации прячутся. Ответ пришёл после idle() — переписать конфиг (лок idle() не зовёт, его это не касается)
+    // hibernation not everywhere (need swap for resume, zram won't do) — ask logind. None — normal sleep, hibernation items
+    // hidden. Answer arrived after idle() — rewrite config (lock idle() doesn't call, not its concern)
     property bool canHibernate: false
     property bool idleDone: false
     readonly property bool hibernateOn: store.hibernate && canHibernate
@@ -264,15 +264,15 @@ Singleton {
         command: ["busctl", "call", "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "CanSuspendThenHibernate"]
         stdout: StdioCollector { onStreamFinished: root.canHibernate = text.includes('"yes"') }
     }
-    // hypridle конфиг на лету не перечитывает: пишем свой и перезапускаем. Тот же текст и hypridle жив — не трогаем,
-    // чтобы перезагрузка шелла не сбрасывала счётчик простоя. inhibit_sleep = 3 — сон ждёт, пока лок встанет (сам hypridle
-    // так ждёт только hyprlock): иначе лок засыпает недоподнятым, а на пробуждении мониторы моргают — монитор, пропавший
-    // в первые ~0.5 с жизни лока, роняет qs (#5)
+    // hypridle config not reread on the fly: write own and restart. Same text and hypridle alive — don't touch,
+    // so shell reload doesn't reset idle counter. inhibit_sleep = 3 — sleep waits until lock stands up (hypridle itself
+    // waits only hyprlock): else lock sleeps half-raised, and on wake monitors blink — monitor disappearing
+    // in first ~0.5 s of lock life drops qs (#5)
     function idle() {
         idleDone = true;
         const s = store, dpms = a => `hyprctl dispatch 'hl.dsp.dpms({action = "${a}"})'`;
         const at = (min, on, back) => min ? `\nlistener {\n    timeout = ${min * 60}\n    on-timeout = ${on}${back ? `\n    on-resume = ${back}` : ""}\n}\n` : "";
-        const conf = "# demonshot: пишет Rules.idle() из rules.json, руками не править\n"
+        const conf = "# demonshot: written by Rules.idle() from rules.json, do not edit by hand\n"
             + "general {\n    lock_cmd = ~/.config/quickshell/rice/rice lock\n    inhibit_sleep = 3\n"
             + `    before_sleep_cmd = loginctl lock-session\n    after_sleep_cmd = ${dpms("on")}\n}\n`
             + at(s.lockAfter, "loginctl lock-session") + at(s.dpmsAfter, dpms("off"), dpms("on"))
@@ -285,7 +285,7 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", store.night ? `pkill -x hyprsunset; exec hyprsunset -t ${store.warmth}` : "pkill -x hyprsunset"]);
     }
 
-    // палитра: Theme перекрашивается сам (биндинги на pal), здесь — то, что живёт вне шелла
+    // palette: Theme recolors itself (bindings on pal), here — what lives outside shell
     function paint() {
         const c = pal.c;
         if (store.paintHypr) {
@@ -305,9 +305,9 @@ Singleton {
         }
     }
 
-    // режимы питания, как в caelestia: профиль power-profiles-daemon. ultra сверху — 60 Гц, без анимаций, blur и теней,
-    // поверх своих настроек, не трогая их: вышел — вернулись. 0 ultra · 1 saver · 2 balanced · 3 performance.
-    // Окна (blur, тени) применяет вызвавший: demonshot — windows(), glyph — Theme.apply() (windows() снял бы его скругление)
+    // power modes, like caelestia: profile power-profiles-daemon. ultra on top — 60 Hz, no animations, blur and shadows,
+    // on top of own settings, not touching them: exit — restored. 0 ultra · 1 saver · 2 balanced · 3 performance.
+    // Windows (blur, shadows) applied by caller: demonshot — windows(), glyph — Theme.apply() (windows() would strip its rounding)
     readonly property var modes: [
         { name: "ultra", short: "ULT", what: `power saver · ${rates[0]} hz · still` },
         { name: "saver", short: "ECO", what: "power saver" },
@@ -321,21 +321,21 @@ Singleton {
         const hz0 = hz, moving0 = moving;
         store.ultra = i === 0;
         PowerProfiles.profile = i === 0 ? PowerProfile.PowerSaver : i - 1;
-        // монитор — только встроенный и если герцы правда другие: перенастройка вывода мигает экраном и сбрасывает наведение
-        // (панели гаснут)
+        // monitor — only built-in and if refresh really differs: reconfiguring output blinks screen and resets hover
+        // (panels go dark)
         if (hz !== hz0 && mon.name) {
             hypr(rule(mon));
             monReread.restart();
         }
         if (moving !== moving0) motion();
     }
-    // что стоит на деле: ultra перекрывает настройки — самые низкие герцы экрана, иначе ближайшие к выбранным
+    // what's in effect: ultra overrides settings — lowest screen refresh, else nearest to chosen
     readonly property int hz: store.ultra ? rates[0] : refreshHz
     readonly property bool moving: store.motion && !store.ultra && !store.game
     readonly property bool blurOn: store.blur && !store.ultra && !store.game
     readonly property bool shadowOn: store.shadow && !store.ultra && !store.game
 
-    // старт шелла: всё, кроме яркости (её крутят клавиши и OSD, перетирать на каждом запуске нельзя)
+    // shell start: everything except brightness (keys and OSD tweak it, don't overwrite on every launch)
     function applyAll() {
         monitor(); windows(); motion(); night(); paint(); input(); idle();
     }

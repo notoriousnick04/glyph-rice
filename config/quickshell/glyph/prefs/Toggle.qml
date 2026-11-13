@@ -2,8 +2,8 @@ import QtQuick
 import qs
 import qs.components
 
-// тумблер: пилюля, выкл — серый кружок слева, подпись справа от него; вкл — белое выезжает на всю длину, точка у правого
-// края, подпись переезжает влево и чернеет. Клик, пробел, ↵ — переключить; ← выкл, → вкл
+// toggle switch: pill, off - gray circle on the left, signature to the right of it; on - white extends out the entire length, dot at the right
+// edges, the signature moves to the left and turns black. Click, space, ↵ - switch; ← off, → on
 Rectangle {
     id: root
 
@@ -43,7 +43,7 @@ Rectangle {
     }
     Lb {
         id: lab
-        x: root.on ? 30 : 76 // вкл — точка справа, подпись уступает ей место
+        x: root.on ? 30 : 76 // on - dot on the right, the signature gives way to it
         Behavior on x { NumberAnimation { duration: Theme.t; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.glide } }
         anchors.verticalCenter: parent.verticalCenter
         text: root.text

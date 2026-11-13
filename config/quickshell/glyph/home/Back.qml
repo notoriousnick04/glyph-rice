@@ -5,10 +5,10 @@ import Quickshell.Wayland
 import qs
 import qs.components
 
-// подложка дома, отдельным окном на слое background: сетка точек, полутоновый шар, обои. Сам дом (часы, бенто) — слоем
-// выше, прозрачный: он перерисовывается часто (двоеточие, кольца, крутящаяся обложка), а обои — полноэкранный шейдер,
-// и в одном окне считались бы на каждый его кадр. Здесь кадр — только на волну, смену вида и дыхание шара.
-// Картинка закрыла всё — сетку и шар не рисуем, шар не дышит: окно стоит
+// home backdrop, separate window on background layer: dot grid, half-tone orb, wallpaper. Home itself (clock, bento) — layer
+// above, transparent: it redraws often (colon, rings, spinning cover), while wallpaper is a fullscreen shader,
+// and in one window they'd be recomputed per its every frame. Here frames only on wave, view change and orb breathing.
+// Image covered everything — grid and orb aren't drawn, orb doesn't breathe: window is idle
 PanelWindow {
     id: root
 
@@ -18,7 +18,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.namespace: "glyph-back"
 
-    readonly property bool home: (Hyprland.monitorFor(screen)?.activeWorkspace?.toplevels.values.length ?? 0) === 0 // пуст свой экран
+    readonly property bool home: (Hyprland.monitorFor(screen)?.activeWorkspace?.toplevels.values.length ?? 0) === 0 // own screen empty
     property real phase: 0
     Timer { running: root.home && orb.visible; interval: 100; repeat: true; onTriggered: root.phase += 0.1 }
 

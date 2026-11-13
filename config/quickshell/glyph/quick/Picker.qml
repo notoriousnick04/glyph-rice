@@ -4,33 +4,33 @@ import Quickshell.Networking
 import qs
 import qs.components
 
-// список под пилюлями (правый клик по Wi-Fi/Bluetooth). Сети: клик подключает и отключает, новая защищённая — строка пароля.
-// Устройства: связанные клик соединяет и разрывает, чужие — знакомит (pair). Ищет, только пока список открыт
+// list under pills (right click on Wi-Fi/Bluetooth). Networks: click connects and disconnects, new protected - password line.
+// Devices: connected clicks connect and separate, alien devices introduce (pair). Searches only while the list is open
 Rectangle {
     id: root
-    property string kind // "wifi" | "bt" | "" — закрыт
-    signal touched       // любой клик внутри — панель приколота
+    property string kind // "wifi" | "bt" | "" — closed
+    signal touched       // any click inside - the panel is pinned
 
     readonly property bool isWifi: kind === "wifi"
     readonly property var wifi: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
     readonly property var bt: Bluetooth.defaultAdapter
     readonly property bool on: isWifi ? Networking.wifiEnabled : bt?.enabled ?? false
-    // сеть со страницей входа: сам портал (и снятие vpn) открывает Vpn, здесь — открыть его снова, если вкладку закрыли
+    // network with a login page: the portal itself (and removing the vpn) opens the vpn, here you can open it again if the tab is closed
     readonly property bool portal: Networking.connectivity === NetworkConnectivity.Portal
 
-    property var ask: null // сеть, которой нужен пароль
+    property var ask: null // network that needs a password
     property string err
     onKindChanged: { ask = null; err = ""; }
-    // пароль ушёл — фокус обратно на панель, чтобы Esc закрывал её
+    // the password is gone - focus back to the panel so that Esc closes it
     onAskChanged: if (!ask && pw.activeFocus) root.forceActiveFocus()
 
     Binding { when: root.isWifi && root.on; target: root.wifi; property: "scannerEnabled"; value: true }
     Binding { when: root.kind === "bt" && root.on; target: root.bt; property: "discovering"; value: true }
 
-    // своя сверху, дальше сохранённые, дальше по силе. Пока вводят пароль — только та сеть: пересортировка не съест набранное
+    // its own from above, further stored, further in strength. While entering the password, only that network: re-sorting will not eat up what you have typed
     readonly property var nets: !isWifi || !wifi ? [] : wifi.networks.values.filter(n => n.name)
         .sort((a, b) => b.connected - a.connected || b.known - a.known || b.signalStrength - a.signalStrength).slice(0, 6)
-    // безымянные (только адрес) — шум эфира
+    // nameless (address only) - air noise
     readonly property var devs: kind !== "bt" || !bt ? [] : bt.devices.values.filter(d => d.paired || d.deviceName)
         .sort((a, b) => b.connected - a.connected || b.paired - a.paired).slice(0, 6)
     readonly property var rows: !on ? [] : ask ? [ask] : isWifi ? nets : devs
@@ -43,7 +43,7 @@ Rectangle {
     function btIcon(i) {
         return /audio|head/.test(i) ? "\u{F02CB}" : /mouse/.test(i) ? "\u{F037D}" : /keyboard/.test(i) ? "\u{F030C}" : /phone/.test(i) ? "\u{F03F2}" : "\u{F00AF}";
     }
-    // ponytail: enterprise (EAP) сюда не пролезет — только psk; понадобится — nmcli в demonshot Settings
+    // ponytail: enterprise (EAP) will not fit here - only psk; you will need - nmcli in demonshot Settings
     function tap(o) {
         touched();
         err = "";
@@ -117,7 +117,7 @@ Rectangle {
                         text: root.isWifi ? root.bars(row.o) : root.btIcon(row.o.icon)
                         font.pixelSize: 19
                         color: row.on ? Theme.ink : Theme.fg
-                        // идёт соединение — иконка дышит
+                        // connection is in progress - the icon is breathing
                         SequentialAnimation on opacity {
                             running: row.busy
                             loops: Animation.Infinite
@@ -140,9 +140,9 @@ Rectangle {
                 }
                 HoverHandler { id: hov; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: root.tap(row.o) }
-                // правый клик по сохранённой — забыть
+                // right click on saved file - forget
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: { root.touched(); if (row.o.known || row.o.paired) row.o.forget(); } }
-                // нет пароля или он не тот — NM просит секрет: снова строка пароля
+                // there is no password or it’s the wrong one - NM asks for a secret: password line again
                 Connections {
                     target: root.isWifi ? row.o : null
                     ignoreUnknownSignals: true

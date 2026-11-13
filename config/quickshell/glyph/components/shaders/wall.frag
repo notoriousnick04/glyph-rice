@@ -1,9 +1,9 @@
 #version 440
-// обои: картинка матрицей точек-светодиодов (dots 1) или фото (dots 0), mono — в тон темы (lo…hi), иначе цвет.
-// Смена — волна от origin: клетка решает целиком, перед фронтом srcA, за ним srcB. На гребне клетка всегда точка,
-// вспухает и светлеет — фото рассыпается в матрицу и собирается уже новым. Сторона без картинки прозрачная (под ней сетка
-// и шар дома), гребень по ней всё равно бежит
-// собрать: qsb --qt6 -o wall.frag.qsb wall.frag
+// wallpaper: image as a matrix of LED dots (dots 1) or photo (dots 0), mono — in theme tone (lo…hi), otherwise color.
+// Switch — wave from origin: a cell decides as a whole, before the front srcA, behind it srcB. At the crest the cell is always a dot,
+// swelling and brightening — photo scatters into a matrix and reassembles as the new one. Side without image is transparent (grid
+// and home orb under it), the crest still runs over it
+// build: qsb --qt6 -o wall.frag.qsb wall.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -12,16 +12,16 @@ layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
     vec2 size;   // px
-    vec2 origin; // px, откуда волна
-    vec2 cropA;  // видимая доля текстуры по x/y (PreserveAspectCrop)
+    vec2 origin; // px, wave origin
+    vec2 cropA;  // visible texture fraction by x/y (PreserveAspectCrop)
     vec2 cropB;
-    vec4 lo;     // тёмный конец тона
-    vec4 hi;     // светлый
+    vec4 lo;     // dark end of the tone
+    vec4 hi;     // light end
     vec4 bg;
-    float pitch;  // шаг точек, px
-    float dots;   // 0 фото … 1 точки
-    float mono;   // 0 цвет … 1 тон
-    float bright; // 0 … 1: от фона до картинки
+    float pitch;  // dot pitch, px
+    float dots;   // 0 photo … 1 dots
+    float mono;   // 0 color … 1 tone
+    float bright; // 0 … 1: from background to image
     float wave;   // 0 … 1
     float hasA;
     float hasB;
@@ -33,7 +33,7 @@ void main() {
     vec2 p = qt_TexCoord0 * size;
     vec2 c = (floor(p / pitch) + 0.5) * pitch;
 
-    // фронт шириной band идёт от origin до дальнего угла; k — 0 ещё старая … 1 уже новая
+    // front of width band runs from origin to far corner; k — 0 still old … 1 already new
     float band = pitch * 14.0;
     float far = length(max(origin, size - origin)) + band;
     float k = clamp((wave * far - distance(c, origin)) / band, 0.0, 1.0);
@@ -41,16 +41,16 @@ void main() {
     bool isB = k > 0.5;
     float has = isB ? hasB : hasA;
 
-    // d 0 — свой пиксель, 1 — центр клетки: между ними картинка в клетке сжимается к центру (плавная пикселизация)
+    // d 0 — own pixel, 1 — cell center: between them the image in the cell shrinks to center (smooth pixelation)
     float d = max(dots, crest);
     vec2 uv = mix(p, c, d) / size - 0.5;
     vec4 t = isB ? texture(srcB, uv * cropB + 0.5) : texture(srcA, uv * cropA + 0.5);
-    vec3 rgb = t.rgb + bg.rgb * (1.0 - t.a); // прозрачное в картинке — на фон
+    vec3 rgb = t.rgb + bg.rgb * (1.0 - t.a); // transparent in image — onto background
     float l = dot(rgb, vec3(0.299, 0.587, 0.114));
     vec3 col = has > 0.5 ? mix(bg.rgb, mix(rgb, mix(lo.rgb, hi.rgb, l), mono), bright) : bg.rgb;
     col = mix(col, hi.rgb, 0.4 * crest);
 
-    // точка: радиус от «вся клетка» (фото) до .3 шага (как Dm), на гребне вспухает
+    // dot: radius from "whole cell" (photo) to .3 pitch (like Dm), swells at crest
     float r = pitch * mix(0.75, 0.3, d) * (1.0 + 0.55 * crest);
     float m = 1.0 - smoothstep(r - 0.6, r + 0.6, distance(p, c));
     float a = has > 0.5 ? 1.0 : m * crest;

@@ -3,25 +3,25 @@ import qs
 import qs.components
 import qs.services
 
-// гифка плитки-кота — Gifs.cur (services/Gifs: папка гифок, выбор здесь или в настройках → home). Серой матрицей точек
-// через шейдер обоев, как и раньше. Клик — следующая, колесо — листать; новая приходит волной шейдера от клика (из центра,
-// если выбрали в настройках)
+// cat tile gif — Gifs.cur (services/Gifs: gif folder, pick here or in settings → home). As a grey dot matrix
+// via the wallpaper shader, as before. Click — next, wheel — browse; new one arrives as a shader wave from the click (from center,
+// if chosen in settings)
 Item {
     id: root
 
     property bool playing: true
-    property color bg // цвет плитки: прозрачное в гифке — в него
+    property color bg // tile color: transparent in gif — into it
 
     function step(d, at) {
         if (at) fx.origin = at;
         Gifs.step(d);
     }
 
-    // как в components/Wall: одна на экране, другая в пути; волна дошла — меняются ролями, старая выгружается
+    // as in components/Wall: one on screen, other on the way; wave arrived — swap roles, old one unloads
     property bool flip: false
     readonly property AnimatedImage cur: flip ? b : a
     readonly property AnimatedImage next: flip ? a : b
-    property string shown: "-" // ещё ничего
+    property string shown: "-" // nothing yet
     property string coming
 
     readonly property string want: Gifs.cur
@@ -37,7 +37,7 @@ Item {
         }
         if (want === shown) return;
         coming = want;
-        next.source = Gifs.url(want); // локальные файлы грузятся синхронно
+        next.source = Gifs.url(want); // local files load synchronously
         if (shown === "-") swap();
         else run.restart();
     }
@@ -61,7 +61,7 @@ Item {
         }
     }
 
-    // источники текстур — соседи эффекта с opacity 0, см. Wall
+    // texture sources — effect siblings with opacity 0, see Wall
     AnimatedImage { id: a; anchors.fill: fx; opacity: 0; playing: root.playing && root.cur === a || run.running }
     AnimatedImage { id: b; anchors.fill: fx; opacity: 0; playing: root.playing && root.cur === b || run.running }
 

@@ -6,12 +6,12 @@ import Quickshell.Wayland
 import qs
 import qs.components
 
-// лаунчер: тап Super или Super+Space. Панель 860 по центру, экран гаснет до 74%. Поиск-пилюля с красной кареткой,
-// режимы чипами (Tab): apps / style / windows / calc. Без запроса — «recent» и все приложения сеткой по 6, справа алфавит.
-// style — цвет, как scheme в caelestia: откуда (nothing, обои, палитра), под ним — тона обоев и варианты (tonal spot…) или палитры
-// (catppuccin, rosé pine…), тема (Theme.styles, те же, что STYLE в настройках). Кружки — образцы, точка — что стоит,
-// ↵ ставит и лаунчер не закрывает. При палитрах поиск — и по группе: «catppuccin».
-// Появляется как Charms и Clip: подъём на 24 и fade. Иконки — иконки темы точками в кругах; выбранная — белый круг
+// launcher: tap Super or Super+Space. Panel 860 centered, screen dims to 74%. Search pill with red caret,
+// modes as chips (Tab): apps / style / windows / calc. No query — "recent" and all apps in 6-wide grid, alphabet on right.
+// style — color, like scheme in caelestia: source (nothing, wallpaper, palette), under it — wallpaper tones and variants (tonal spot...) or palettes
+// (catppuccin, rosé pine...), theme (Theme.styles, same as STYLE in settings). Circles — samples, dot — what's installed,
+// Enter applies and launcher doesn't close. With palettes search — by group too: "catppuccin".
+// Appears like Charms and Clip: rise by 24 and fade. Icons — theme icons as dots in circles; selected — white circle
 PanelWindow {
     id: root
 
@@ -19,13 +19,13 @@ PanelWindow {
     property int sel: 0
     readonly property var modes: ["apps", "style", "windows", "calc"]
     readonly property string query: input.text
-    property var uses: ({}) // id приложения → сколько раз открыли
+    property var uses: ({}) // app id -> how many times opened
 
-    // иконка темы или путь из .desktop; нет её (или файла) — общий значок приложения, а не пустой круг
+    // theme icon or path from .desktop; none (or file) — generic app icon, not empty circle
     function icon(name) { return Quickshell.iconPath(name || "application-x-executable", "application-x-executable"); }
 
-    // на старте DesktopEntries добавляет записи по одной (~160 valuesChanged): биндинг пересобирал бы сетку на каждую —
-    // секунды фриза. Собираем раз, когда список затих
+    // on start DesktopEntries adds entries one by one (~160 valuesChanged): binding would rebuild grid each —
+    // seconds of freeze. Collect once, when list settles
     property var apps: []
     Timer {
         id: appsT
@@ -40,23 +40,23 @@ PanelWindow {
         target: DesktopEntries.applications
         function onValuesChanged() { appsT.restart(); }
     }
-    // окна — только пока открыт режим windows: иначе любая смена заголовка пересобирала бы список
+    // windows — only while windows mode open: otherwise any title change would rebuild list
     readonly property var wins: !visible || mode !== 2 ? [] : Hyprland.toplevels.values.map(t => {
         const cls = t.lastIpcObject?.class ?? "";
         return { name: t.title, src: icon(DesktopEntries.heuristicLookup(cls)?.icon), extra: cls.toLowerCase(),
                  run: () => { focusT.addr = t.address; focusT.restart(); } };
     })
-    // пока лаунчер держит клавиатуру (Exclusive), Hyprland переключит воркспейс, но фокус окну не даст — а отпустив
-    // клавиатуру, вернёт прежнее окно с его воркспейсом. Поэтому фокус — когда отпустили (уходит со следующим кадром).
-    // ponytail: 100 мс — запас на кадр; не хватит — фокусировать по onVisibleChanged, после fade
+    // while launcher holds keyboard (Exclusive), Hyprland switches workspace but won't give focus to window — and releasing
+    // keyboard returns previous window with its workspace. So focus — when released (goes next frame).
+    // ponytail: 100 ms — frame margin; not enough — focus by onVisibleChanged, after fade
     Timer {
         id: focusT
         property string addr
         interval: 100
-        onTriggered: Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addr}" })`) // Quickshell даёт адрес без 0x
+        onTriggered: Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addr}" })`) // Quickshell gives address without 0x
     }
 
-    // подпоследовательность: начало слова и подряд — выше. hl — индексы совпавших букв
+    // subsequence: start of word and consecutive — higher. hl — indices of matched letters
     function match(s, q) {
         if (!q) return { score: 1, hl: [] };
         const l = s.toLowerCase(), hl = [], at = l.indexOf(q);
@@ -79,7 +79,7 @@ PanelWindow {
         return out.sort((a, b) => b.score - a.score || (uses[b.id] ?? 0) - (uses[a.id] ?? 0));
     }
 
-    // блоки: { head, sub, items }; каждой ячейке — row/col, по ним ходят стрелки
+    // blocks: { head, sub, items }; each cell — row/col, arrows move by them
     readonly property var blocks: {
         const q = query.trim().toLowerCase();
         let b;
@@ -108,7 +108,7 @@ PanelWindow {
     Behavior on t { NumberAnimation { duration: Theme.t; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.glide } }
 
     function open() {
-        focusT.stop(); // окно из прошлого открытия не перехватит фокус у лаунчера
+        focusT.stop(); // window from previous open won't steal focus from launcher
         input.text = "";
         mode = 0;
         sel = 0;
@@ -125,7 +125,7 @@ PanelWindow {
         if (row.length) sel = row.reduce((a, x) => Math.abs(x.col - c.col) < Math.abs(a.col - c.col) ? x : a).k;
     }
     function launch() {
-        if (!shown) return; // гаснет Theme.t и ещё ловит клики: второй клик двойного — второе окно
+        if (!shown) return; // Theme.t fades and still catches clicks: double click's second — second window
         if (mode === 3) {
             if (calcOut) Quickshell.execDetached(["wl-copy", calcOut]);
             return close();
@@ -152,11 +152,11 @@ PanelWindow {
     Process { id: calc; stdout: StdioCollector { onStreamFinished: root.calcOut = text.trim() } }
     onQueryChanged: {
         sel = 0;
-        if (mode === 3 && query.trim()) calc.exec(["qalc", "-t", query]); // exec гасит прошлый расчёт
+        if (mode === 3 && query.trim()) calc.exec(["qalc", "-t", query]); // exec kills previous calc
         else calcOut = "";
     }
     onModeChanged: { sel = 0; flick.contentY = 0; if (mode === 3) queryChanged(); }
-    // список сжался без нового запроса (закрылось окно в windows) — курсор за концом, cur пустой
+    // list shrank without new query (window closed in windows) — cursor past end, cur empty
     onFlatChanged: sel = Math.max(0, Math.min(sel, flat.length - 1))
 
     onVisibleChanged: if (visible) input.forceActiveFocus()
@@ -191,7 +191,7 @@ PanelWindow {
             border { width: 1; color: Theme.s2 }
             MouseArea { anchors.fill: parent }
 
-            // поиск: пилюля, красная каретка, чипы режимов
+            // search: pill, red caret, mode chips
             Rectangle {
                 id: search
                 x: 34
@@ -269,7 +269,7 @@ PanelWindow {
                     id: body
                     width: flick.width
 
-                    // calc: ответ крупно, Enter — скопировать
+                    // calc: answer large, Enter — copy
                     Column {
                         visible: root.mode === 3
                         topPadding: 10
@@ -278,8 +278,8 @@ PanelWindow {
                         Num { width: body.width; elide: Text.ElideRight; text: root.calcOut || "—"; font.pixelSize: 96 }
                     }
 
-                    // по индексу, а не по массиву: новый blocks (буква в поиске, запуск, recent) не пересоздаёт ~160 ячеек
-                    // с иконками и слоями — им только меняются данные
+                    // by index, not array: new blocks (letter in search, launch, recent) don't recreate ~160 cells
+                    // with icons and layers — only their data changes
                     Repeater {
                         id: blockRep
                         model: root.blocks.length
@@ -290,12 +290,12 @@ PanelWindow {
                             readonly property var modelData: root.blocks[index] ?? ({ head: "", items: [] })
                             readonly property Item g: grid
                             width: body.width
-                            topPadding: index ? 30 : 10 // +20 у flick сверху: прокрученное режется с зазором под поиском
+                            topPadding: index ? 30 : 10 // +20 in flick top: scrolled cuts with gap under search
 
                             Row {
                                 spacing: 14
                                 bottomPadding: 18
-                                // группа букв Doto: какие буквы сейчас в окне
+                                // Doto letter group: which letters are currently in window
                                 Num { visible: !!block.modelData.all; anchors.baseline: blab.baseline; text: root.range; font.pixelSize: 34 }
                                 Lb { id: blab; text: block.modelData.head + (block.modelData.sub ? ` · ${block.modelData.sub}` : "") }
                             }
@@ -313,7 +313,7 @@ PanelWindow {
                 }
             }
 
-            // алфавит справа: буквы в окне — белые, клик — к первой на эту букву
+            // alphabet on right: letters in window — white, click — to first on that letter
             Column {
                 visible: root.mode === 0 && !root.query && !!root.allGrid
                 anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 130 }
@@ -334,12 +334,12 @@ PanelWindow {
         }
     }
 
-    // буквы всех приложений, чьи ряды сейчас видны: «A–F»
+    // letters of all apps whose rows are currently visible: "A-F"
     readonly property var allItems: blocks.find(b => b.all)?.items ?? []
     readonly property Item allGrid: { const i = blocks.findIndex(b => b.all); return blockRep.count > i && i >= 0 ? blockRep.itemAt(i)?.g ?? null : null; }
     readonly property string range: {
         if (!allGrid || !allItems.length) return "";
-        const top = allGrid.mapToItem(body, 0, 0).y, rh = 88 + 10 + 20 + 22; // круг, отступ, подпись, зазор
+        const top = allGrid.mapToItem(body, 0, 0).y, rh = 88 + 10 + 20 + 22; // circle, gap, caption, spacing
         const r0 = Math.max(0, Math.floor((flick.contentY - top) / rh)), r1 = Math.floor((flick.contentY + flick.height - top) / rh);
         const seen = allItems.slice(r0 * 6, (r1 + 1) * 6).map(a => a.name[0].toUpperCase());
         return seen.length ? seen[0] === seen[seen.length - 1] ? seen[0] : `${seen[0]}–${seen[seen.length - 1]}` : "";
@@ -351,21 +351,21 @@ PanelWindow {
         flick.contentY = Math.min(Math.max(0, flick.contentHeight - flick.height), allGrid.mapToItem(body, 0, 0).y + Math.floor(i / 6) * (88 + 10 + 20 + 22));
     }
 
-    // приложение: круг 88 с глифом или иконкой точками, подпись — совпавшие буквы белые
+    // app: circle 88 with glyph or icon as dots, caption — matched letters white
     component Cell: Column {
         id: cell
         required property int index
         property var items: []
         readonly property var modelData: items[index] ?? ({ name: "", hl: [] })
         readonly property bool on: root.sel === modelData.k
-        // окно layer-shell Quickshell пересоздаёт на каждое открытие, и Image грузит текстуру даже скрытым: 160 иконок —
-        // ~60 мс первого кадра. Вне прокрутки (с запасом в ряд) ячейка пустая и без иконки, высоту держит сама
-        property real gy // y сетки в body
+        // layer-shell window Quickshell recreates on every open, and Image loads texture even when hidden: 160 icons —
+        // ~60 ms first frame. Outside scroll (with row margin) cell empty and no icon, keeps height itself
+        property real gy // grid y in body
         readonly property bool near: gy + y < flick.contentY + flick.height + 140 && gy + y + height > flick.contentY - 140
         width: body.width / 6
         height: 88 + spacing + label.implicitHeight
         spacing: 10
-        onOnChanged: if (on) flick.ensure(mapToItem(body, 0, 0).y - 8, height + 8) // 8 — кольцо образца над кругом
+        onOnChanged: if (on) flick.ensure(mapToItem(body, 0, 0).y - 8, height + 8) // 8 — sample ring above circle
 
         Rectangle {
             id: disc
@@ -375,8 +375,8 @@ PanelWindow {
             height: 88
             radius: 44
             color: cell.modelData.fill ?? (cell.on ? Theme.fg : Theme.s2)
-            border { width: cell.modelData.fill ? 1 : 0; color: Theme.s3 } // чёрный образец на панели
-            // образец под курсором — кольцо вокруг: залить белым — пропал бы цвет. dot — акцент палитры, что стоит сейчас — точка
+            border { width: cell.modelData.fill ? 1 : 0; color: Theme.s3 } // black sample on panel
+            // sample under cursor — ring around: fill white — color would vanish. dot — palette accent, what's installed now — dot
             Rectangle { visible: cell.on && !!cell.modelData.fill; anchors.centerIn: parent; width: 104; height: 104; radius: 52; color: "transparent"; border { width: 2; color: Theme.fg } }
             Rectangle { id: inner; visible: !!cell.modelData.dot; anchors.centerIn: parent; width: 40; height: 40; radius: 20; color: cell.modelData.dot ?? "transparent" }
             Rectangle { visible: !!cell.modelData.now; anchors.centerIn: parent; width: 14; height: 14; radius: 7; color: Theme.on(inner.visible ? inner.color : disc.color) }
@@ -388,8 +388,8 @@ PanelWindow {
                 source: cell.near ? cell.modelData.src ?? "" : ""
                 sourceSize: Qt.size(44, 44)
                 asynchronous: true
-                retainWhileLoading: true // ячейке сменили приложение — старая иконка, пока грузится новая
-                layer.enabled: cell.near // слой рисует свой Image и скрытым
+                retainWhileLoading: true // app changed in cell — old icon until new loads
+                layer.enabled: cell.near // layer draws its Image even hidden
                 layer.effect: Dm { step: 2.5 }
             }
             TapHandler { onTapped: { root.sel = cell.modelData.k; root.launch(); } }

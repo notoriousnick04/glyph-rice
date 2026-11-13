@@ -4,6 +4,8 @@
 
 Black, white dots, one red. A sibling of [Demon's Shot](https://github.com/Nebelung-cloud/demons-shot-rice).
 
+Fork of [Nebelung-cloud/glyph-rice](https://github.com/Nebelung-cloud/glyph-rice) by Nebelung-L. This fork is maintained by [notoriousnick04](https://github.com/notoriousnick04).
+
 <br>
 
 ![Glyph desktop](screenshots/desktop.png)
@@ -54,7 +56,7 @@ Also: Hyprland (Lua), hypridle, kitty, fish, starship, fastfetch, btop, cava (do
 <h2 align="center">Install</h2>
 
 ```sh
-git clone https://github.com/Nebelung-cloud/glyph-rice ~/.local/share/glyph
+git clone https://github.com/notoriousnick04/glyph-rice ~/.local/share/glyph
 ~/.local/share/glyph/install.sh                  # Arch: packages, services, symlinks, login theme
 ~/.local/share/glyph/install.sh --with telegram  # same, extras picked up front
 ~/.local/share/glyph/install.sh --links          # any distro: symlinks only

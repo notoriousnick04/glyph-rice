@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Services.Mpris
 import QtQuick
 
-// активный плеер (играющий или первый)
+// active player (playing or the first one)
 Singleton {
     id: root
 
@@ -18,7 +18,7 @@ Singleton {
         return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
 
-    // позицию mpris надо опрашивать
+    // the mpris position has to be polled
     Timer {
         running: root.playing
         interval: 500
@@ -26,7 +26,7 @@ Singleton {
         onTriggered: root.position = root.player?.position ?? 0
     }
 
-    // новый трек — позицию сразу, не ждать опроса
+    // new track — set the position right away, don't wait for polling
     readonly property string track: player ? `${player.trackArtist}\n${player.trackTitle}` : ""
     onTrackChanged: position = player?.position ?? 0
 }

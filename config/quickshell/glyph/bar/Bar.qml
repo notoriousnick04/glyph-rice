@@ -12,9 +12,9 @@ import qs.components
 import qs.services
 import qs.settings
 
-// бар: пилюля у левого края или сверху — Theme.state.barAt. Первым знак (кольцо из 16 точек) — лаунчер, центр краснеет,
-// пока запись или микрофон. Воркспейсы точками, заголовок окна, часы Doto по центру, трей последним — клик открывает быстрые настройки.
-// Сбоку всё столбиком, сверху — строкой. Что в трее и в каком порядке, есть ли заголовок — Theme.state (настройки, раздел BAR)
+// bar: pill at left edge or top — Theme.state.barAt. First mark (ring of 16 dots) — launcher, center turns red
+// while recording or microphone. Workspaces as dots, window title, Doto clock at center, tray last — click opens quick settings.
+// Side — stacked column, top — row. What's in tray and in what order, whether title shows — Theme.state (settings, BAR section)
 PanelWindow {
     id: root
 
@@ -23,21 +23,21 @@ PanelWindow {
     signal powerClicked
     signal clockClicked
 
-    readonly property bool vert: Theme.state.barAt !== "top" // всё, кроме top (и неизвестное), — слева
+    readonly property bool vert: Theme.state.barAt !== "top" // everything except top (and unknown) — left
     anchors { left: true; right: !vert; top: true; bottom: vert }
-    implicitWidth: Math.ceil(78 * Theme.s)  // сбоку
-    implicitHeight: Math.ceil(78 * Theme.s) // сверху
+    implicitWidth: Math.ceil(78 * Theme.s)  // side
+    implicitHeight: Math.ceil(78 * Theme.s) // top
     color: "transparent"
     WlrLayershell.namespace: "glyph-bar"
 
     readonly property int active: Hyprland.focusedWorkspace?.id ?? 0
-    // шесть точек, больше — если занят или открыт дальний
+    // six dots, more — if occupied or a far one is open
     readonly property int count: Math.min(10, Math.max(6, active, ...Hyprland.workspaces.values.filter(w => w.toplevels.values.length).map(w => w.id)))
     readonly property var top: ToplevelManager.activeToplevel
     readonly property var bat: UPower.displayDevice
     readonly property var wifi: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
 
-    // hyprland 0.56 с lua: dispatch принимает lua-выражение
+    // hyprland 0.56 with lua: dispatch accepts a lua expression
     function go(ws) { Hyprland.dispatch(`hl.dsp.focus({ workspace = "${ws}" })`); }
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -45,7 +45,7 @@ PanelWindow {
     Stage {
         Rectangle {
             id: pill
-            x: 14 // от краёв экрана
+            x: 14 // from screen edges
             y: 14
             width: root.vert ? 64 : parent.width - 28
             height: root.vert ? parent.height - 28 : 64
@@ -55,7 +55,7 @@ PanelWindow {
 
             Notch { onNotch: d => root.go(d > 0 ? "-1" : "+1") }
 
-            // знак: кольцо из точек, центр — красный, пока что-то пишет
+            // mark: ring of dots, center — red while something is typing
             Item {
                 id: mark
                 x: root.vert ? (parent.width - width) / 2 : 18
@@ -68,12 +68,12 @@ PanelWindow {
                     width: 9
                     height: 9
                     radius: 4.5
-                    color: !Sys.live ? Theme.fg : Qt.colorEqual(Theme.accent, Theme.fg) ? Theme.red : Theme.accent // monochrome: акцент = fg
+                    color: !Sys.live ? Theme.fg : Qt.colorEqual(Theme.accent, Theme.fg) ? Theme.red : Theme.accent // monochrome: accent = fg
                 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.markClicked() }
             }
 
-            // воркспейсы: текущий вытягивается в белую пилюлю, занятые серые, пустые — линия
+            // workspaces: current stretches into white pill, occupied grey, empty — line
             Pile {
                 id: ws
                 x: root.vert ? (parent.width - width) / 2 : mark.x + mark.width + 24
@@ -100,7 +100,7 @@ PanelWindow {
                 }
             }
 
-            // заголовок окна: от воркспейсов до часов, сбоку — повёрнутый
+            // window title: from workspaces to clock, side — rotated
             Item {
                 id: title
                 x: root.vert ? (parent.width - width) / 2 : ws.x + ws.width + 24
@@ -121,7 +121,7 @@ PanelWindow {
                 }
             }
 
-            // часы: сбоку столбиком 14 над 32 и день, сверху строкой. Клик — календарь и фокус-таймер (cal/Cal)
+            // clock: side — column 14 over 32 and day, top — row. Click — calendar and focus timer (cal/Cal)
             Pile {
                 id: clk
                 anchors.centerIn: parent
@@ -138,8 +138,8 @@ PanelWindow {
                 }
             }
 
-            // трей — Theme.state.bar по порядку (настройки, раздел BAR). Раскладка, сеть, bluetooth, звук (колесо — громкость),
-            // уведомления, батарея, бегущий кот: клик открывает быстрые настройки. Режим питания и питание — свои клики
+            // tray — Theme.state.bar in order (settings, BAR section). Layout, network, bluetooth, sound (wheel — volume),
+            // notifications, battery, running cat: click opens quick settings. Power mode and power — own clicks
             Pile {
                 x: root.vert ? (parent.width - width) / 2 : parent.width - width - 22
                 y: root.vert ? parent.height - height - 22 : (parent.height - height) / 2
@@ -162,8 +162,8 @@ PanelWindow {
     }
     readonly property var parts: ({ layout: layoutC, wifi: wifiC, bluetooth: btC, sound: soundC, notes: notesC, battery: batC, mode: modeC, power: powerC, cat: catC })
     Component { id: layoutC; Lb { text: Sys.layout; px: 10 } }
-    // кот RunCat: чем больше cpu, тем быстрее бежит (250 мс на кадр в простое, 50 на полной). cpu опрашивается, пока он в трее;
-    // Binding не в делегате — уничтоженный значение не возвращает. Серый как есть, в светлой теме на белом теряется — чёрный, как buds
+    // RunCat: the more cpu, the faster it runs (250 ms per frame idle, 50 at full). cpu polled while it's in tray;
+    // Binding not in delegate — destroyed value doesn't return. Grey as is, in light theme lost on white — black, like buds
     Component {
         id: catC
         AnimatedImage {
@@ -177,7 +177,7 @@ PanelWindow {
         }
     }
     Binding { target: SysStats; property: "cat"; value: Theme.state.bar.includes("cat") }
-    // сеть: две дуги и точка, концы круглые, как у батареи; выключен — косая черта
+    // network: two arcs and a dot, round ends like battery; off — slash
     Component {
         id: wifiC
         Shape {
@@ -223,7 +223,7 @@ PanelWindow {
             color: Notes.list.length ? Theme.fg : Theme.grey
         }
     }
-    // слева батарея стоит, заряд растёт снизу; сверху — лежит, растёт слева. На зарядке — молния первой, заливка дышит, пока заряжается
+    // battery stands on left, charge grows from bottom; on top — lies, grows from left. Charging — lightning first, fill breathes while charging
     Component {
         id: batC
         Pile {
@@ -232,8 +232,8 @@ PanelWindow {
             spacing: 8
             readonly property bool ac: !UPower.onBattery
             readonly property bool charging: root.bat.state === UPowerDeviceState.Charging
-            // дыхание шагом 20 кадров/с, как шар в home/Back: анимация гнала бы бар на каждом vsync (120 Гц) все часы
-            // зарядки. Косинус с периодом 2,2 с — те же два InOutSine по 1,1 с
+            // breathing at 20 frames/s, like the orb in home/Back: animation would thrash bar on every vsync (120 Hz) all charging hours
+            // charge. Cosine with period 2.2 s — same two InOutSine over 1.1 s
             property real phase: 0
             readonly property real pulse: charging ? 0.675 + 0.325 * Math.cos(phase * Math.PI / 1.1) : 1
             Timer { running: batc.charging; interval: 50; repeat: true; onTriggered: batc.phase = (batc.phase + 0.05) % 2.2; onRunningChanged: batc.phase = 0 }
@@ -254,13 +254,13 @@ PanelWindow {
                     opacity: batc.pulse
                 }
             }
-            // ширина — под «100»: сверху трей прижат вправо, 99 → 100 сдвигал бы всё левее
+            // width — for "100": top tray pinned right, 99 → 100 would shift everything left
             Lb { width: full.implicitWidth; horizontalAlignment: Text.AlignHCenter; text: Math.round(root.bat.percentage * 100); px: 10 }
             Lb { id: full; visible: false; text: "100"; px: 10 }
         }
     }
-    // режим питания засечками (Rules.modes): ultra — одна, performance — все; клик — следующий,
-    // наведение (и на батарею) — карточка с выбором
+    // power mode with ticks (Rules.modes): ultra — one, performance — all; click — next,
+    // hover (and battery) — card with choice
     Component {
         id: modeC
         Item {
@@ -296,15 +296,15 @@ PanelWindow {
         }
     }
 
-    // ---- батарея и режим питания: навёл на батарею или засечки — карточка сбоку от бара (со стороны экрана), как поповер caelestia.
-    // Заряд Doto, статус, шкала; ниже режимы кругами с засечками — клик выбирает, под курсором — что он делает.
-    // Ушёл и с бара, и с карточки — гаснет ----
+    // ---- battery and power mode: hovered battery or ticks — card beside bar (screen side), like caelestia popover.
+    // Charge Doto, status, scale; below modes as circles with ticks — click selects, under cursor — what it does.
+    // Leave both bar and card — fades out ----
     property bool batHot: false
     property bool tickHot: false
     readonly property bool powHot: batHot || tickHot || popHov.hovered
     readonly property bool batLow: UPower.onBattery && root.bat.percentage < 0.15
-    // карточка встаёт по тому, на что навели (батарея или засечки): сбоку — низом к его низу, сверху — правым краем к его правому;
-    // пока видна — не прыгает
+    // card stands by what's hovered (battery or ticks): side — bottom aligned to its bottom, top — right edge to its right;
+    // while visible — doesn't jump
     property point popAt
     function peek(it) { if (!pop.visible) popAt = it.mapToItem(pill, it.width, it.height); }
     property bool powOpen: false
@@ -323,7 +323,7 @@ PanelWindow {
         property real t: root.powOpen ? 1 : 0
         Behavior on t { NumberAnimation { duration: Theme.t; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.glide } }
         visible: t > 0
-        // от внутреннего края пилюли бара с зазором 14; сбоку растёт вверх от popAt, сверху — вниз и влево
+        // from inner edge of bar pill with gap 14; side grows up from popAt, top — down and left
         anchor.item: pill
         anchor.rect: root.vert ? Qt.rect(pill.width + 14, root.popAt.y, 1, 1) : Qt.rect(root.popAt.x, pill.height + 14, 1, 1)
         anchor.edges: Edges.Top | Edges.Left
@@ -379,7 +379,7 @@ PanelWindow {
                                     radius: 40
                                     color: mo.on ? Theme.fg : moHov.hovered ? Theme.s3 : Theme.s2
                                     Behavior on color { ColorAnimation { duration: Theme.t } }
-                                    // засечки: сколько горит — такая сила
+                                    // ticks: how many lit — such power
                                     Row {
                                         anchors.centerIn: parent
                                         spacing: 4
