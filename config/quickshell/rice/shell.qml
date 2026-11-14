@@ -41,7 +41,7 @@ ShellRoot {
         color: "#0B0B0B"
         implicitWidth: 1040
         implicitHeight: 600
-        onVisibleChanged: if (!visible) Qt.quit() // window closed (Super+C) — exit
+        onVisibleChanged: if (!visible) Qt.quit() // window closed (Super+W) — exit
 
         Item {
             anchors.fill: parent
