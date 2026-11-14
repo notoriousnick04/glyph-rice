@@ -19,7 +19,7 @@ PACMAN=(
     pipewire pipewire-pulse pipewire-alsa wireplumber networkmanager bluez bluez-utils power-profiles-daemon
     # utilities invoked by binds and shell
     brightnessctl playerctl wl-clipboard cliphist grim slurp swappy imagemagick libvips libqalculate
-    gpu-screen-recorder ydotool libnotify trash-cli
+    gpu-screen-recorder ydotool libnotify trash-cli 7zip mpv
     # terminal and console
     kitty fish starship fastfetch btop cava eza zoxide direnv
     # apps from variables.lua
