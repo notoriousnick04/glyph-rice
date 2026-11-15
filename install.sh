@@ -21,7 +21,7 @@ PACMAN=(
     brightnessctl playerctl wl-clipboard cliphist grim slurp swappy imagemagick libvips libqalculate
     gpu-screen-recorder ydotool libnotify trash-cli 7zip mpv
     # terminal and console
-    kitty fish starship fastfetch btop cava eza zoxide direnv
+    kitty fish starship fastfetch btop cava eza zoxide direnv opencode
     # apps from variables.lua
     thunar pavucontrol
     # fonts (cjk — kaomoji in Charms), icons (Papirus-Dark — base of Rice folder theme), dark base for gtk.css
